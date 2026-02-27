@@ -1,4 +1,5 @@
 {
+  //added for mySQL driver import purpose. eta korar age "lib" folder er majhe "mysql driver" (java jonno) download kore Extract rakhte hobe.
   "java.project.referencedLibraries": [
     "lib/**/*.jar"
   ]
