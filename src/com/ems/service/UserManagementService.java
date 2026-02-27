@@ -1,7 +1,9 @@
 package com.ems.service;
 
 import com.ems.dao.UserManagementDao;
+import com.ems.dao.UserProfileDetails;
 import com.ems.model.UserListRow;
+import com.ems.model.UserRole;
 
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -55,6 +57,14 @@ public class UserManagementService {
         } catch (Exception e) {
             throw new IllegalArgumentException("Join date must be YYYY-MM-DD");
         }
+    }
+
+    // ... আগের methods থাকবে ...
+    public UserProfileDetails loadProfile(long userId, UserRole role) {
+        if (userId <= 0) throw new IllegalArgumentException("Invalid user id");
+        if (role != UserRole.EMPLOYEE && role != UserRole.MANAGER)
+            throw new IllegalArgumentException("Role must be EMPLOYEE or MANAGER");
+        return dao.loadProfile(userId, role);
     }
 
     private static String normalize(String s) {
