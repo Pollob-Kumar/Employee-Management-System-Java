@@ -1,0 +1,121 @@
+CREATE DATABASE IF NOT EXISTS ems_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE ems_db;
+
+-- USERS (Auth)
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  role ENUM('ADMIN','MANAGER','EMPLOYEE') NOT NULL,
+  password_hash VARBINARY(64) NOT NULL,
+  password_salt VARBINARY(16) NOT NULL,
+  iterations INT NOT NULL DEFAULT 120000,
+  status ENUM('ACTIVE','DISABLED') NOT NULL DEFAULT 'ACTIVE',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- DEPARTMENTS
+CREATE TABLE IF NOT EXISTS departments (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(80) NOT NULL UNIQUE,
+  manager_user_id BIGINT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_departments_manager
+    FOREIGN KEY (manager_user_id) REFERENCES users(id)
+    ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- EMPLOYEE PROFILE (for EMPLOYEE role)
+CREATE TABLE IF NOT EXISTS employee_profiles (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL UNIQUE,
+  department_id BIGINT NOT NULL,
+  full_name VARCHAR(120) NOT NULL,
+  email VARCHAR(120) NULL UNIQUE,
+  phone VARCHAR(30) NULL,
+  address VARCHAR(255) NULL,
+  join_date DATE NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_employee_profiles_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_employee_profiles_department
+    FOREIGN KEY (department_id) REFERENCES departments(id)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- MANAGER PROFILE (separate fields as you asked)
+CREATE TABLE IF NOT EXISTS manager_profiles (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL UNIQUE,
+  department_id BIGINT NOT NULL,
+  full_name VARCHAR(120) NOT NULL,
+  email VARCHAR(120) NULL UNIQUE,
+  phone VARCHAR(30) NULL,
+  address VARCHAR(255) NULL,
+  join_date DATE NOT NULL,
+  designation VARCHAR(80) NOT NULL,
+  allowance DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_manager_profiles_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_manager_profiles_department
+    FOREIGN KEY (department_id) REFERENCES departments(id)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- ATTENDANCE (check-in / check-out)
+CREATE TABLE IF NOT EXISTS attendance (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  work_date DATE NOT NULL,
+  check_in TIME NULL,
+  check_out TIME NULL,
+  note VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_attendance_user_date (user_id, work_date),
+  CONSTRAINT fk_attendance_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- LEAVE REQUESTS
+CREATE TABLE IF NOT EXISTS leave_requests (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  from_date DATE NOT NULL,
+  to_date DATE NOT NULL,
+  leave_type ENUM('CASUAL','SICK','ANNUAL','OTHER') NOT NULL,
+  reason VARCHAR(255) NOT NULL,
+  status ENUM('PENDING','APPROVED','REJECTED') NOT NULL DEFAULT 'PENDING',
+  reviewed_by_user_id BIGINT NULL,
+  review_comment VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at TIMESTAMP NULL,
+  CONSTRAINT fk_leave_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_leave_reviewer
+    FOREIGN KEY (reviewed_by_user_id) REFERENCES users(id)
+    ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- SALARY HISTORY
+CREATE TABLE IF NOT EXISTS salary_history (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  effective_from DATE NOT NULL,
+  set_by_user_id BIGINT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_salary_user_effective (user_id, effective_from),
+  CONSTRAINT fk_salary_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_salary_set_by
+    FOREIGN KEY (set_by_user_id) REFERENCES users(id)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
