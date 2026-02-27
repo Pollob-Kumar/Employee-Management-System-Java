@@ -157,4 +157,51 @@ public class UserManagementDao {
         s = s.trim();
         return s.isEmpty() ? null : s;
     }
+
+    // ... আগের code থাকবে ...
+    public UserProfileDetails loadProfile(long userId, UserRole role) {
+        if (role == null) throw new IllegalArgumentException("Role required");
+
+        String sqlEmployee = """
+            SELECT department_id, full_name, email, phone, address, join_date
+            FROM employee_profiles
+            WHERE user_id=?
+            """;
+
+        String sqlManager = """
+            SELECT department_id, full_name, email, phone, address, join_date, designation, allowance
+            FROM manager_profiles
+            WHERE user_id=?
+            """;
+
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(role == UserRole.MANAGER ? sqlManager : sqlEmployee)) {
+
+            ps.setLong(1, userId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) throw new IllegalStateException("Profile not found for userId=" + userId);
+
+                UserProfileDetails d = new UserProfileDetails();
+                d.userId = userId;
+                d.role = role;
+
+                d.departmentId = rs.getLong("department_id");
+                d.fullName = rs.getString("full_name");
+                d.email = rs.getString("email");
+                d.phone = rs.getString("phone");
+                d.address = rs.getString("address");
+                d.joinDate = rs.getDate("join_date").toString();
+
+                if (role == UserRole.MANAGER) {
+                    d.designation = rs.getString("designation");
+                    d.allowance = rs.getBigDecimal("allowance");
+                }
+                return d;
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("DB error in loadProfile", e);
+        }
+    }
 }
