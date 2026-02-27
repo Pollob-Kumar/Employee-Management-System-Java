@@ -2,6 +2,7 @@ package com.ems.ui;
 
 import com.ems.ui.components.NavButton;
 import com.ems.ui.panels.DepartmentsPanel;
+import com.ems.ui.panels.UsersListPanel;
 import com.ems.ui.panels.UsersPanel;
 import com.ems.util.Session;
 
@@ -15,7 +16,8 @@ public class AdminDashboardFrame extends JFrame {
     private final JPanel content = new JPanel(cardLayout);
 
     private NavButton btnDepartments;
-    private NavButton btnUsers;
+    private NavButton btnUsersCreate;
+    private NavButton btnUsersManage;
 
     public AdminDashboardFrame() {
         super("EMS - Admin Dashboard");
@@ -44,12 +46,15 @@ public class AdminDashboardFrame extends JFrame {
         brand.setBorder(new EmptyBorder(0, 6, 14, 6));
 
         btnDepartments = new NavButton("Departments");
-        btnUsers = new NavButton("Users");
+        btnUsersCreate = new NavButton("Create User");
+        btnUsersManage = new NavButton("Manage Users");
 
         sidebar.add(brand);
         sidebar.add(btnDepartments);
         sidebar.add(Box.createVerticalStrut(8));
-        sidebar.add(btnUsers);
+        sidebar.add(btnUsersCreate);
+        sidebar.add(Box.createVerticalStrut(8));
+        sidebar.add(btnUsersManage);
         sidebar.add(Box.createVerticalGlue());
 
         JButton logout = new JButton("Logout");
@@ -66,7 +71,8 @@ public class AdminDashboardFrame extends JFrame {
 
         // Content cards
         content.add(new DepartmentsPanel(), "DEPARTMENTS");
-        content.add(new UsersPanel(), "USERS");
+        content.add(new UsersPanel(), "USERS_CREATE");
+        content.add(new UsersListPanel(), "USERS_MANAGE");
 
         // Layout
         root.add(sidebar, BorderLayout.WEST);
@@ -80,7 +86,8 @@ public class AdminDashboardFrame extends JFrame {
 
         // Actions
         btnDepartments.addActionListener(e -> showDepartments());
-        btnUsers.addActionListener(e -> showUsers());
+        btnUsersCreate.addActionListener(e -> showUsersCreate());
+        btnUsersManage.addActionListener(e -> showUsersManage());
         logout.addActionListener(e -> doLogout());
 
         return root;
@@ -88,7 +95,8 @@ public class AdminDashboardFrame extends JFrame {
 
     private void setActive(NavButton active) {
         btnDepartments.setActive(active == btnDepartments);
-        btnUsers.setActive(active == btnUsers);
+        btnUsersCreate.setActive(active == btnUsersCreate);
+        btnUsersManage.setActive(active == btnUsersManage);
     }
 
     private void showDepartments() {
@@ -96,9 +104,14 @@ public class AdminDashboardFrame extends JFrame {
         cardLayout.show(content, "DEPARTMENTS");
     }
 
-    private void showUsers() {
-        setActive(btnUsers);
-        cardLayout.show(content, "USERS");
+    private void showUsersCreate() {
+        setActive(btnUsersCreate);
+        cardLayout.show(content, "USERS_CREATE");
+    }
+
+    private void showUsersManage() {
+        setActive(btnUsersManage);
+        cardLayout.show(content, "USERS_MANAGE");
     }
 
     private void doLogout() {
