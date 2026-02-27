@@ -2,6 +2,7 @@ package com.ems.ui;
 
 import com.ems.ui.components.NavButton;
 import com.ems.ui.panels.DepartmentsPanel;
+import com.ems.ui.panels.UsersPanel;
 import com.ems.util.Session;
 
 import javax.swing.*;
@@ -14,6 +15,7 @@ public class AdminDashboardFrame extends JFrame {
     private final JPanel content = new JPanel(cardLayout);
 
     private NavButton btnDepartments;
+    private NavButton btnUsers;
 
     public AdminDashboardFrame() {
         super("EMS - Admin Dashboard");
@@ -42,9 +44,12 @@ public class AdminDashboardFrame extends JFrame {
         brand.setBorder(new EmptyBorder(0, 6, 14, 6));
 
         btnDepartments = new NavButton("Departments");
+        btnUsers = new NavButton("Users");
 
         sidebar.add(brand);
         sidebar.add(btnDepartments);
+        sidebar.add(Box.createVerticalStrut(8));
+        sidebar.add(btnUsers);
         sidebar.add(Box.createVerticalGlue());
 
         JButton logout = new JButton("Logout");
@@ -61,6 +66,7 @@ public class AdminDashboardFrame extends JFrame {
 
         // Content cards
         content.add(new DepartmentsPanel(), "DEPARTMENTS");
+        content.add(new UsersPanel(), "USERS");
 
         // Layout
         root.add(sidebar, BorderLayout.WEST);
@@ -74,6 +80,7 @@ public class AdminDashboardFrame extends JFrame {
 
         // Actions
         btnDepartments.addActionListener(e -> showDepartments());
+        btnUsers.addActionListener(e -> showUsers());
         logout.addActionListener(e -> doLogout());
 
         return root;
@@ -81,11 +88,17 @@ public class AdminDashboardFrame extends JFrame {
 
     private void setActive(NavButton active) {
         btnDepartments.setActive(active == btnDepartments);
+        btnUsers.setActive(active == btnUsers);
     }
 
     private void showDepartments() {
         setActive(btnDepartments);
         cardLayout.show(content, "DEPARTMENTS");
+    }
+
+    private void showUsers() {
+        setActive(btnUsers);
+        cardLayout.show(content, "USERS");
     }
 
     private void doLogout() {
