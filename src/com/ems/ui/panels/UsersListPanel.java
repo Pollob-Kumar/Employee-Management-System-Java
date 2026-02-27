@@ -1,7 +1,7 @@
 package com.ems.ui.panels;
 
+import com.ems.dao.UserProfileDetails;
 import com.ems.model.Department;
-import com.ems.model.UserListRow;
 import com.ems.model.UserRole;
 import com.ems.service.DepartmentService;
 import com.ems.service.UserManagementService;
@@ -11,7 +11,6 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.math.BigDecimal;
-import java.util.List;
 
 public class UsersListPanel extends JPanel {
 
@@ -26,6 +25,8 @@ public class UsersListPanel extends JPanel {
 
     private final DefaultTableModel model;
     private final JTable table;
+
+    private final JSplitPane split;
 
     // Edit form
     private final JPanel editPanel = new JPanel(new GridBagLayout());
@@ -55,9 +56,48 @@ public class UsersListPanel extends JPanel {
 
         JLabel title = new JLabel("Manage Users (Managers & Employees)");
         title.setFont(new Font("SansSerif", Font.BOLD, 18));
-        add(title, BorderLayout.NORTH);
 
-        // Top filter bar
+        JPanel top = buildTopBar();
+        JPanel north = new JPanel(new BorderLayout());
+        north.setOpaque(false);
+        north.add(title, BorderLayout.NORTH);
+        north.add(top, BorderLayout.SOUTH);
+        add(north, BorderLayout.NORTH);
+
+        // Table
+        model = new DefaultTableModel(new Object[]{"User ID", "Username", "Role", "Full Name", "Department"}, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
+        table = new JTable(model);
+        table.setRowHeight(28);
+        JScrollPane tableScroll = new JScrollPane(table);
+
+        // Edit panel UI
+        buildEditPanel();
+        editPanel.setVisible(false);
+
+        split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tableScroll, editPanel);
+        split.setResizeWeight(0.80);
+        split.setDividerSize(8);
+        split.setOneTouchExpandable(true);
+        add(split, BorderLayout.CENTER);
+
+        refreshDepartments();
+        refreshTable();
+
+        // actions
+        refreshBtn.addActionListener(e -> refreshTable());
+        roleFilterCombo.addActionListener(e -> refreshTable());
+        searchField.addActionListener(e -> refreshTable());
+
+        deleteBtn.addActionListener(e -> onDeleteSelected());
+        editBtn.addActionListener(e -> onEditSelected());
+
+        cancelBtn.addActionListener(e -> hideEdit());
+        saveBtn.addActionListener(e -> onSave());
+    }
+
+    private JPanel buildTopBar() {
         JPanel top = new JPanel(new GridBagLayout());
         top.setOpaque(false);
 
@@ -86,38 +126,7 @@ public class UsersListPanel extends JPanel {
         gc.gridx = 6; gc.weightx = 0;
         top.add(deleteBtn, gc);
 
-        add(top, BorderLayout.NORTH);
-
-        // Table
-        model = new DefaultTableModel(new Object[]{"User ID", "Username", "Role", "Full Name", "Department"}, 0) {
-            @Override public boolean isCellEditable(int row, int column) { return false; }
-        };
-        table = new JTable(model);
-        table.setRowHeight(28);
-        JScrollPane tableScroll = new JScrollPane(table);
-
-        // Edit panel
-        buildEditPanel();
-        editPanel.setVisible(false);
-
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tableScroll, editPanel);
-        split.setResizeWeight(0.72);
-        split.setDividerSize(8);
-        add(split, BorderLayout.CENTER);
-
-        refreshDepartments();
-        refreshTable();
-
-        // actions
-        refreshBtn.addActionListener(e -> refreshTable());
-        roleFilterCombo.addActionListener(e -> refreshTable());
-        searchField.addActionListener(e -> refreshTable());
-
-        deleteBtn.addActionListener(e -> onDeleteSelected());
-        editBtn.addActionListener(e -> onEditSelected());
-
-        cancelBtn.addActionListener(e -> hideEdit());
-        saveBtn.addActionListener(e -> onSave());
+        return top;
     }
 
     private void refreshDepartments() {
@@ -127,9 +136,9 @@ public class UsersListPanel extends JPanel {
 
     private void refreshTable() {
         try {
-            List<UserListRow> list = service.list((String) roleFilterCombo.getSelectedItem(), searchField.getText());
+            var list = service.list((String) roleFilterCombo.getSelectedItem(), searchField.getText());
             model.setRowCount(0);
-            for (UserListRow r : list) {
+            for (var r : list) {
                 model.addRow(new Object[]{r.getUserId(), r.getUsername(), r.getRole().name(), r.getFullName(), r.getDepartmentName()});
             }
         } catch (Exception ex) {
@@ -171,14 +180,60 @@ public class UsersListPanel extends JPanel {
         selectedUserId = ((Number) model.getValueAt(row, 0)).longValue();
         selectedRole = UserRole.valueOf(String.valueOf(model.getValueAt(row, 2)));
 
-        // NOTE: For v1 simplicity: we don't auto-load existing profile fields from DB.
-        // We allow admin to re-enter values and save.
-        // If you want: next step we can auto-load data and prefill fields.
+        try {
+            UserProfileDetails d = service.loadProfile(selectedUserId, selectedRole);
+            prefill(d);
+            showEditPanel();
+        } catch (Exception ex) {
+            showError(ex);
+        }
+    }
 
-        editTitle.setText("Edit " + selectedRole.name() + " (User ID: " + selectedUserId + ")");
-        joinDateField.setText(java.time.LocalDate.now().toString());
-        managerExtraPanel.setVisible(selectedRole == UserRole.MANAGER);
+    private void prefill(UserProfileDetails d) {
+        editTitle.setText("Edit " + d.role.name() + " (User ID: " + d.userId + ")");
+
+        // set department selection
+        Department selected = null;
+        for (int i = 0; i < deptCombo.getItemCount(); i++) {
+            Department dep = deptCombo.getItemAt(i);
+            if (dep != null && dep.getId() == d.departmentId) {
+                selected = dep;
+                break;
+            }
+        }
+        deptCombo.setSelectedItem(selected);
+
+        fullNameField.setText(nullToEmpty(d.fullName));
+        emailField.setText(nullToEmpty(d.email));
+        phoneField.setText(nullToEmpty(d.phone));
+        addressArea.setText(nullToEmpty(d.address));
+        joinDateField.setText(nullToEmpty(d.joinDate));
+
+        boolean isManager = d.role == UserRole.MANAGER;
+        managerExtraPanel.setVisible(isManager);
+        if (isManager) {
+            designationField.setText(nullToEmpty(d.designation));
+            allowanceField.setText(d.allowance == null ? "0.00" : d.allowance.toPlainString());
+        } else {
+            designationField.setText("");
+            allowanceField.setText("0.00");
+        }
+    }
+
+    private void showEditPanel() {
         editPanel.setVisible(true);
+
+        // Expand split pane so edit panel is visible
+        SwingUtilities.invokeLater(() -> {
+            int h = split.getHeight();
+            if (h <= 0) return;
+            // give edit panel around 35% height
+            split.setDividerLocation((int) (h * 0.60));
+            editPanel.scrollRectToVisible(new Rectangle(0, 0, 10, 10));
+            editPanel.revalidate();
+            editPanel.repaint();
+        });
+
         revalidate();
         repaint();
     }
@@ -242,6 +297,7 @@ public class UsersListPanel extends JPanel {
         selectedUserId = null;
         selectedRole = null;
         editPanel.setVisible(false);
+
         fullNameField.setText("");
         emailField.setText("");
         phoneField.setText("");
@@ -249,6 +305,7 @@ public class UsersListPanel extends JPanel {
         joinDateField.setText("");
         designationField.setText("");
         allowanceField.setText("0.00");
+
         revalidate();
         repaint();
     }
@@ -319,6 +376,10 @@ public class UsersListPanel extends JPanel {
         editPanel.add(new JLabel(label), gc);
         gc.gridx = 1; gc.weightx = 1;
         editPanel.add(comp, gc);
+    }
+
+    private static String nullToEmpty(String s) {
+        return s == null ? "" : s;
     }
 
     private void showError(Exception ex) {
